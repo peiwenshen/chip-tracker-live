@@ -332,24 +332,24 @@ const ChipTracker = () => {
 
   if (!playerName || !hasJoinedRoom) {
     return (
-      <main className="min-h-screen bg-[#f6f3ee] px-3 py-3 text-slate-950 sm:px-6 sm:py-6 lg:px-8">
+      <main className="min-h-screen bg-[#f2eee6] px-3 py-3 text-[#1b1916] sm:px-6 sm:py-6 lg:px-8">
         <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl items-center sm:min-h-[calc(100vh-3rem)]">
-          <div className="grid w-full overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xl lg:grid-cols-[1.05fr_0.95fr]">
-            <section className="flex flex-col justify-between bg-slate-950 p-5 text-white sm:p-8 lg:p-10">
+          <div className="grid w-full overflow-hidden rounded-lg border border-[#ded3bf] bg-[#fffaf0] shadow-2xl shadow-[#3b2d1a]/15 lg:grid-cols-[1.05fr_0.95fr]">
+            <section className="flex flex-col justify-between bg-[#0f3128] p-5 text-white sm:p-8 lg:p-10">
               <div>
-                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-slate-200 sm:mb-10 sm:text-sm">
-                  <CircleDollarSign className="h-4 w-4 text-emerald-300" />
+                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-[#eee6d6] sm:mb-10 sm:text-sm">
+                  <CircleDollarSign className="h-4 w-4 text-[#d8b45f]" />
                   Live table balance
                 </div>
                 <h1 className="max-w-xl text-3xl font-semibold leading-tight sm:text-5xl">
                   Poker Chip Tracker
                 </h1>
-                <p className="mt-3 max-w-md text-sm text-slate-300 sm:mt-5 sm:text-base">
+                <p className="mt-3 max-w-md text-sm text-[#d8d0c2] sm:mt-5 sm:text-base">
                   Create a room, invite players, and keep chip transfers synced during the game.
                 </p>
               </div>
 
-              <div className="mt-6 grid grid-cols-3 gap-2 text-xs text-slate-300 sm:mt-12 sm:gap-3 sm:text-sm">
+              <div className="mt-6 grid grid-cols-3 gap-2 text-xs text-[#d8d0c2] sm:mt-12 sm:gap-3 sm:text-sm">
                 <div className="rounded-md border border-white/10 bg-white/10 p-3 sm:p-4">
                   <p className="text-lg font-semibold text-white sm:text-2xl">1,000</p>
                   <p>Starting chips</p>
@@ -367,8 +367,8 @@ const ChipTracker = () => {
 
             <section className="p-5 sm:p-8 lg:p-10">
               <div className="mb-5 sm:mb-8">
-                <h2 className="text-xl font-semibold text-slate-950 sm:text-2xl">Join a table</h2>
-                <p className="mt-2 text-sm text-slate-500">Use a player name and room code, or create a new room.</p>
+                <h2 className="text-xl font-semibold text-[#1b1916] sm:text-2xl">Join a table</h2>
+                <p className="mt-2 text-sm text-[#766d5f]">Use a player name and room code, or create a new room.</p>
               </div>
 
               {error && (
@@ -378,24 +378,24 @@ const ChipTracker = () => {
               )}
 
               {successMessage && (
-                <div className="mb-5 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700">
+                <div className="mb-5 rounded-md border border-[#bfd9c7] bg-[#edf7ef] p-3 text-sm text-[#1f6b4f]">
                   {successMessage}
                 </div>
               )}
 
               <div className="space-y-5">
                 <div>
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Player name</label>
+                  <label className="mb-2 block text-sm font-medium text-[#4b4438]">Player name</label>
                   <input
                     value={nameInput}
                     onChange={(event) => setNameInput(event.target.value)}
                     placeholder="e.g. Alex"
-                    className="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-950 outline-none transition focus:border-slate-900 focus:ring-4 focus:ring-slate-200"
+                    className="min-h-11 w-full rounded-md border border-[#cfc2aa] bg-white px-3 py-2.5 text-base text-[#1b1916] outline-none transition focus:border-[#0f3128] focus:ring-4 focus:ring-[#d8c7a3]"
                   />
                 </div>
 
                 <button
-                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-[#0f3128] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174338] disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={handleSaveName}
                   disabled={isBusy || !nameInput.trim()}
                 >
@@ -404,18 +404,18 @@ const ChipTracker = () => {
                 </button>
 
                 <div className="pt-3">
-                  <label className="mb-2 block text-sm font-medium text-slate-700">Room code</label>
+                  <label className="mb-2 block text-sm font-medium text-[#4b4438]">Room code</label>
                   <input
                     value={roomInput}
                     onChange={(event) => setRoomInput(event.target.value)}
                     placeholder="Enter room code"
-                    className="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-950 outline-none transition focus:border-slate-900 focus:ring-4 focus:ring-slate-200"
+                    className="min-h-11 w-full rounded-md border border-[#cfc2aa] bg-white px-3 py-2.5 text-base text-[#1b1916] outline-none transition focus:border-[#0f3128] focus:ring-4 focus:ring-[#d8c7a3]"
                   />
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <button
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#1f6b4f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#18543f] disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={handleJoinRoom}
                     disabled={isBusy || !nameInput.trim() || !roomInput.trim()}
                   >
@@ -423,7 +423,7 @@ const ChipTracker = () => {
                     Join Room
                   </button>
                   <button
-                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-[#cfc2aa] bg-[#fffaf0] px-4 py-2.5 text-sm font-semibold text-[#1b1916] transition hover:bg-[#f7edd9] disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={handleCreateRoom}
                     disabled={isBusy || !nameInput.trim()}
                   >
@@ -440,15 +440,15 @@ const ChipTracker = () => {
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f3ee] px-3 py-3 text-slate-950 sm:px-6 sm:py-5 lg:px-8">
+    <main className="min-h-screen bg-[#f2eee6] px-3 py-3 text-[#1b1916] sm:px-6 sm:py-5 lg:px-8">
       <div className="mx-auto w-full max-w-7xl">
-        <header className="mb-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-950 text-white shadow-lg sm:mb-5">
+        <header className="mb-3 overflow-hidden rounded-lg border border-[#123a30] bg-[#0f3128] text-white shadow-xl shadow-[#3b2d1a]/15 sm:mb-5">
           <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-emerald-300 sm:text-sm">Active room</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-[#d8b45f] sm:text-sm">Active room</p>
               <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-3">
                 <h1 className="text-2xl font-semibold sm:text-4xl">{roomId}</h1>
-                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm text-slate-200">
+                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm text-[#eee6d6]">
                   {playerName}
                 </span>
               </div>
@@ -456,16 +456,16 @@ const ChipTracker = () => {
 
             <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:min-w-[420px]">
               <div className="rounded-md border border-white/10 bg-white/10 p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Players</p>
+                <p className="text-xs uppercase tracking-wide text-[#d8d0c2]">Players</p>
                 <p className="mt-1 text-xl font-semibold sm:text-2xl">{roomPlayers.length}</p>
               </div>
               <div className="rounded-md border border-white/10 bg-white/10 p-3">
-                <p className="text-xs uppercase tracking-wide text-slate-400">Chips</p>
+                <p className="text-xs uppercase tracking-wide text-[#d8d0c2]">Chips</p>
                 <p className="mt-1 text-xl font-semibold sm:text-2xl">{totalChips}</p>
               </div>
               <button
                 type="button"
-                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-red-600 px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#b94a3a] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#973d31] disabled:cursor-not-allowed disabled:opacity-50"
                 onClick={handleLeaveRoom}
                 disabled={isBusy}
               >
@@ -484,59 +484,59 @@ const ChipTracker = () => {
           )}
 
           <div className="grid grid-cols-1 gap-3 sm:gap-5 lg:grid-cols-[1fr_420px]">
-            <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-4">
+            <section className="rounded-lg border border-[#ded3bf] bg-[#fffaf0] shadow-sm shadow-[#4a3820]/10">
+              <div className="flex items-center justify-between border-b border-[#ded3bf] px-4 py-3 sm:px-5 sm:py-4">
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-950">Players</h2>
-                  <p className="text-sm text-slate-500">Live balances.</p>
+                  <h2 className="text-lg font-semibold text-[#1b1916]">Players</h2>
+                  <p className="text-sm text-[#766d5f]">Live balances.</p>
                 </div>
-                <Users className="h-5 w-5 text-slate-400" />
+                <Users className="h-5 w-5 text-[#9b917f]" />
               </div>
               {roomPlayers.length > 0 ? (
-                <ul className="divide-y divide-slate-100">
+                <ul className="divide-y divide-[#eee5d5]">
                   {roomPlayers.map((roomPlayer) => (
                     <li key={roomPlayer.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
                       <div className="flex min-w-0 items-center gap-3">
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-100 text-sm font-semibold text-slate-700 sm:h-10 sm:w-10">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#f1eadc] text-sm font-semibold text-[#4b4438] sm:h-10 sm:w-10">
                           {(roomPlayer.players?.name || roomPlayer.player_id).slice(0, 2).toUpperCase()}
                         </div>
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-slate-900">
+                          <p className="truncate font-medium text-[#1b1916]">
                             {roomPlayer.players?.name || roomPlayer.player_id}
                           </p>
                           {roomPlayer.player_id === playerId && (
-                            <p className="text-sm text-emerald-700">You</p>
+                            <p className="text-sm text-[#1f6b4f]">You</p>
                           )}
                         </div>
                       </div>
-                      <div className="shrink-0 rounded-md bg-amber-50 px-3 py-2 text-right">
-                        <p className="text-base font-semibold leading-none text-slate-950 sm:text-lg">{roomPlayer.chips}</p>
-                        <p className="text-xs text-amber-700">chips</p>
+                      <div className="shrink-0 rounded-md bg-[#fff5d8] px-3 py-2 text-right">
+                        <p className="text-base font-semibold leading-none text-[#1b1916] sm:text-lg">{roomPlayer.chips}</p>
+                        <p className="text-xs text-[#9a6919]">chips</p>
                       </div>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="p-5 text-center text-slate-500">No players in the room.</p>
+                <p className="p-5 text-center text-[#766d5f]">No players in the room.</p>
               )}
             </section>
 
             <div className="space-y-3 sm:space-y-5">
-              <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+              <section className="rounded-lg border border-[#ded3bf] bg-[#fffaf0] p-4 shadow-sm shadow-[#4a3820]/10 sm:p-5">
                 <div className="mb-4 flex items-center justify-between sm:mb-5">
                   <div>
-                    <h2 className="text-lg font-semibold text-slate-950">Transfer chips</h2>
-                    <p className="text-sm text-slate-500">
+                    <h2 className="text-lg font-semibold text-[#1b1916]">Transfer chips</h2>
+                    <p className="text-sm text-[#766d5f]">
                       Balance available: {currentPlayer?.chips ?? 0}
                     </p>
                   </div>
-                  <Send className="h-5 w-5 text-slate-400" />
+                  <Send className="h-5 w-5 text-[#9b917f]" />
                 </div>
                 <div className="space-y-5">
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Send to</label>
+                    <label className="mb-2 block text-sm font-medium text-[#4b4438]">Send to</label>
                     <select
-                      className="min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-950 outline-none transition focus:border-slate-900 focus:ring-4 focus:ring-slate-200"
+                      className="min-h-11 w-full rounded-md border border-[#cfc2aa] bg-white px-3 py-2.5 text-base text-[#1b1916] outline-none transition focus:border-[#0f3128] focus:ring-4 focus:ring-[#d8c7a3]"
                       onChange={(event) => setSelectedPlayer(event.target.value)}
                       value={selectedPlayer}
                       disabled={isBusy}
@@ -551,18 +551,18 @@ const ChipTracker = () => {
                   </div>
 
                   {selectedPlayerData && (
-                    <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 sm:p-4">
-                      <h3 className="font-semibold text-emerald-900">
+                    <div className="rounded-md border border-[#bfd9c7] bg-[#edf7ef] p-3 sm:p-4">
+                      <h3 className="font-semibold text-[#164633]">
                         {selectedPlayerData.players?.name || selectedPlayerData.player_id}
                       </h3>
-                      <p className="text-sm text-emerald-700">
+                      <p className="text-sm text-[#1f6b4f]">
                         Current Balance: {selectedPlayerData.chips} chips
                       </p>
                     </div>
                   )}
 
                   <div>
-                    <label className="mb-2 block text-sm font-medium text-slate-700">Amount</label>
+                    <label className="mb-2 block text-sm font-medium text-[#4b4438]">Amount</label>
                     <div className="grid grid-cols-4 gap-2">
                       {TRANSFER_AMOUNTS.map((amount) => (
                         <button
@@ -575,8 +575,8 @@ const ChipTracker = () => {
                           disabled={isBusy || (currentPlayer ? amount > currentPlayer.chips : true)}
                           className={`min-h-11 rounded-md px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                             transferAmount === amount
-                              ? "bg-slate-950 text-white ring-4 ring-slate-200"
-                              : "border border-slate-300 bg-white text-slate-800 hover:bg-slate-50"
+                              ? "bg-[#0f3128] text-white ring-4 ring-[#d8c7a3]"
+                              : "border border-[#cfc2aa] bg-white text-[#2d2923] hover:bg-[#f7edd9]"
                           }`}
                         >
                           {amount}
@@ -589,14 +589,14 @@ const ChipTracker = () => {
                       inputMode="numeric"
                       pattern="[0-9]*"
                       placeholder="Custom amount"
-                      className="mt-3 min-h-11 w-full rounded-md border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-950 outline-none transition focus:border-slate-900 focus:ring-4 focus:ring-slate-200"
+                      className="mt-3 min-h-11 w-full rounded-md border border-[#cfc2aa] bg-white px-3 py-2.5 text-base text-[#1b1916] outline-none transition focus:border-[#0f3128] focus:ring-4 focus:ring-[#d8c7a3]"
                       disabled={isBusy}
                     />
                   </div>
 
                   <button
                     type="button"
-                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-[#0f3128] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174338] disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={handleChipTransfer}
                     disabled={isBusy || !selectedPlayer || isTransferAmountInvalid}
                   >
@@ -606,15 +606,15 @@ const ChipTracker = () => {
                 </div>
               </section>
 
-              <section className="rounded-lg border border-slate-200 bg-white shadow-sm">
-                <div className="border-b border-slate-200 px-4 py-3 sm:px-5 sm:py-4">
-                  <h2 className="text-lg font-semibold text-slate-950">Recent transactions</h2>
+              <section className="rounded-lg border border-[#ded3bf] bg-[#fffaf0] shadow-sm shadow-[#4a3820]/10">
+                <div className="border-b border-[#ded3bf] px-4 py-3 sm:px-5 sm:py-4">
+                  <h2 className="text-lg font-semibold text-[#1b1916]">Recent transactions</h2>
                 </div>
                 {transactions.length > 0 ? (
-                  <ul className="max-h-96 divide-y divide-slate-100 overflow-y-auto">
+                  <ul className="max-h-96 divide-y divide-[#eee5d5] overflow-y-auto">
                     {transactions.map((transaction) => (
                       <li key={transaction.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
-                        <span className="min-w-0 truncate text-sm text-slate-700">
+                        <span className="min-w-0 truncate text-sm text-[#4b4438]">
                           <span className="font-medium">
                             {transaction.from_player_name ??
                               playerNamesById.get(transaction.from_player) ??
@@ -627,14 +627,14 @@ const ChipTracker = () => {
                               transaction.to_player}
                           </span>
                         </span>
-                        <span className="whitespace-nowrap rounded-md bg-slate-100 px-2 py-1 text-sm font-semibold text-slate-950">
+                        <span className="whitespace-nowrap rounded-md bg-[#f1eadc] px-2 py-1 text-sm font-semibold text-[#1b1916]">
                           {transaction.amount}
                         </span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="p-5 text-center text-slate-500">No transactions yet.</p>
+                  <p className="p-5 text-center text-[#766d5f]">No transactions yet.</p>
                 )}
               </section>
             </div>
