@@ -1,126 +1,163 @@
-"use client";
-
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import supabase from "../../lib/supabaseClient";
+import supabase from "@/lib/supabaseClient";
+import {
+  createRoomAndJoin,
+  fetchRoomPlayers,
+  fetchTransactions,
+  getRoom,
+  joinRoom,
+  leaveRoom,
+  renamePlayer,
+  transferChips,
+} from "@/lib/chipTrackerApi";
 import type { RoomPlayer, Transaction } from "@/types";
 
+const PLAYER_ID_KEY = "playerId";
+const PLAYER_NAME_KEY = "playerName";
+const ROOM_ID_KEY = "roomId";
+const TRANSFER_AMOUNTS = [10, 20, 50, 100];
+
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "object" && error && "message" in error) {
+    return String(error.message);
+  }
+  return String(error);
+};
+
+const getFriendlyErrorMessage = (error: unknown) => {
+  const message = getErrorMessage(error);
+  const normalizedMessage = message.toLowerCase();
+
+  if (
+    normalizedMessage.includes("transfer_chips") ||
+    (normalizedMessage.includes("function") && normalizedMessage.includes("not found"))
+  ) {
+    return "Supabase transfer setup is missing. Apply supabase/sql/001_schema.sql before using transfers.";
+  }
+
+  if (normalizedMessage.includes("insufficient chips")) {
+    return "You do not have enough chips for this transfer.";
+  }
+
+  if (normalizedMessage.includes("cannot transfer chips to yourself")) {
+    return "Choose another player before transferring chips.";
+  }
+
+  if (normalizedMessage.includes("both players must be in this room")) {
+    return "Both players must still be in the room to transfer chips.";
+  }
+
+  if (normalizedMessage.includes("row-level security")) {
+    return "Supabase rejected this action because of database security rules.";
+  }
+
+  if (normalizedMessage.includes("duplicate key")) {
+    return "That record already exists. Refresh and try again.";
+  }
+
+  return message;
+};
+
+const getStoredValue = (key: string) => localStorage.getItem(key) ?? "";
+
 const ChipTracker = () => {
-  // Generate a persistent player ID
   const [playerId] = useState(() => {
-    const storedId = localStorage.getItem("playerId");
+    const storedId = getStoredValue(PLAYER_ID_KEY);
     if (storedId) return storedId;
+
     const newId = uuidv4();
-    localStorage.setItem("playerId", newId);
+    localStorage.setItem(PLAYER_ID_KEY, newId);
     return newId;
   });
 
-  // Persist player name and room info across reloads
-  const [tempPlayerName, setTempPlayerName] = useState("");
-  const [playerName, setPlayerName] = useState(localStorage.getItem("playerName") || "");
-  const [roomId, setRoomId] = useState(localStorage.getItem("roomId") || "");
-  const [hasJoinedRoom, setHasJoinedRoom] = useState(!!localStorage.getItem("roomId"));
+  const [nameInput, setNameInput] = useState(() => getStoredValue(PLAYER_NAME_KEY));
+  const [playerName, setPlayerName] = useState(() => getStoredValue(PLAYER_NAME_KEY));
+  const [roomInput, setRoomInput] = useState(() => getStoredValue(ROOM_ID_KEY));
+  const [roomId, setRoomId] = useState(() => getStoredValue(ROOM_ID_KEY));
+  const [hasJoinedRoom, setHasJoinedRoom] = useState(() => Boolean(getStoredValue(ROOM_ID_KEY)));
 
-  // Data arrays
   const [roomPlayers, setRoomPlayers] = useState<RoomPlayer[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-
-  // For chip transfers
-  const [selectedPlayer, setSelectedPlayer] = useState<string | null>(null);
-  const [selectedPlayerData, setSelectedPlayerData] = useState<RoomPlayer | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState("");
   const [transferAmount, setTransferAmount] = useState<number | null>(null);
-  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
-
-  // New state for rename functionality
-  const [newPlayerName, setNewPlayerName] = useState("");
-  const [renameSuccess, setRenameSuccess] = useState(false);
-
-  // Error state
+  const [customTransferAmount, setCustomTransferAmount] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isBusy, setIsBusy] = useState(false);
 
-  // Persist player name changes
-  useEffect(() => {
-    if (playerName) localStorage.setItem("playerName", playerName);
-  }, [playerName]);
+  const currentPlayer = useMemo(
+    () => roomPlayers.find((roomPlayer) => roomPlayer.player_id === playerId) ?? null,
+    [playerId, roomPlayers]
+  );
 
-  // Debug: log roomPlayers updates
-  useEffect(() => {
-    console.log("Updated roomPlayers:", roomPlayers);
+  const selectedPlayerData = useMemo(
+    () => roomPlayers.find((roomPlayer) => roomPlayer.player_id === selectedPlayer) ?? null,
+    [roomPlayers, selectedPlayer]
+  );
+
+  const playerNamesById = useMemo(() => {
+    return new Map(roomPlayers.map((roomPlayer) => [roomPlayer.player_id, roomPlayer.players?.name ?? roomPlayer.player_id]));
   }, [roomPlayers]);
 
-    // Add new rename handler
-    const handleRename = async () => {
-        if (!newPlayerName || !playerId) return;
-        setError(null);
-        try {
-        // Update player record in database
-        const { error: playerError } = await supabase
-            .from("players")
-            .update({ name: newPlayerName })
-            .eq("id", playerId);
+  const isTransferAmountInvalid =
+    transferAmount === null ||
+    !Number.isInteger(transferAmount) ||
+    transferAmount <= 0 ||
+    (currentPlayer ? transferAmount > currentPlayer.chips : true);
 
-        if (playerError) throw playerError;
+  const persistRoom = useCallback((nextRoomId: string) => {
+    setRoomId(nextRoomId);
+    setRoomInput(nextRoomId);
+    setHasJoinedRoom(Boolean(nextRoomId));
 
-        // Update local state and storage
-        setPlayerName(newPlayerName);
-        localStorage.setItem("playerName", newPlayerName);
-        setNewPlayerName("");
-        setRenameSuccess(true);
-
-        // Clear success message after 3 seconds
-        setTimeout(() => {
-            setRenameSuccess(false);
-        }, 3000);
-        } catch (err: any) {
-        console.error("Error renaming player:", err);
-        setError("Error renaming player: " + (err.message || err));
-        }
-    };
-
-
-  // Fetch room players (with join query to include player's name)
-  const fetchRoomPlayers = async () => {
-    if (!roomId) return;
-    setError(null);
-    const { data, error } = await supabase
-      .from("room_players")
-      .select(`*, players ( name )`)
-      .eq("room_id", roomId);
-    if (error) {
-      console.error("Error fetching room players:", error);
-      setError("Error fetching room players: " + error.message);
+    if (nextRoomId) {
+      localStorage.setItem(ROOM_ID_KEY, nextRoomId);
     } else {
-      setRoomPlayers(data);
+      localStorage.removeItem(ROOM_ID_KEY);
     }
-  };
+  }, []);
 
-  // Fetch transactions for the room
-  const fetchTransactions = async () => {
-    if (!roomId) return;
+  const clearRoomState = useCallback(() => {
+    persistRoom("");
+    setRoomPlayers([]);
+    setTransactions([]);
+    setSelectedPlayer("");
+    setTransferAmount(null);
+    setCustomTransferAmount("");
+  }, [persistRoom]);
+
+  const loadRoomData = useCallback(async (targetRoomId = roomId) => {
+    if (!targetRoomId) return;
+
     setError(null);
-    const { data, error } = await supabase
-      .from("transactions")
-      .select("*")
-      .eq("room_id", roomId);
-    if (error) {
-      console.error("Error fetching transactions:", error);
-      setError("Error fetching transactions: " + error.message);
-    } else {
-      setTransactions(data);
-    }
-  };
+    try {
+      const [players, roomTransactions] = await Promise.all([
+        fetchRoomPlayers(targetRoomId),
+        fetchTransactions(targetRoomId),
+      ]);
 
-  // Refetch data when roomId changes
-  useEffect(() => {
-    if (roomId) {
-      fetchRoomPlayers();
-      fetchTransactions();
-    }
-  }, [roomId]);
+      if (!players.some((roomPlayer) => roomPlayer.player_id === playerId)) {
+        clearRoomState();
+        setError("You are no longer a member of this room. Join again to continue.");
+        return;
+      }
 
-  // Realtime subscriptions for room_players and transactions
+      setRoomPlayers(players);
+      setTransactions(roomTransactions);
+    } catch (loadError) {
+      setError(`Error loading room: ${getFriendlyErrorMessage(loadError)}`);
+    }
+  }, [clearRoomState, playerId, roomId]);
+
   useEffect(() => {
-    if (!roomId) return;
+    if (!roomId || !hasJoinedRoom) return;
+    void loadRoomData();
+  }, [hasJoinedRoom, loadRoomData, roomId]);
+
+  useEffect(() => {
+    if (!roomId || !hasJoinedRoom) return;
 
     const roomChannel = supabase
       .channel(`room_${roomId}`)
@@ -133,13 +170,9 @@ const ChipTracker = () => {
           filter: `room_id=eq.${roomId}`,
         },
         () => {
-          fetchRoomPlayers();
+          void loadRoomData();
         }
       )
-      .subscribe();
-
-    const transactionChannel = supabase
-      .channel(`transactions_${roomId}`)
       .on(
         "postgres_changes",
         {
@@ -149,327 +182,280 @@ const ChipTracker = () => {
           filter: `room_id=eq.${roomId}`,
         },
         () => {
-          fetchTransactions();
+          void loadRoomData();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(roomChannel);
-      supabase.removeChannel(transactionChannel);
+      void supabase.removeChannel(roomChannel);
     };
-  }, [roomId]);
+  }, [hasJoinedRoom, loadRoomData, roomId]);
 
-  // Fetch selected player's data when selection changes
-  useEffect(() => {
-    if (!selectedPlayer || !roomId) {
-      setSelectedPlayerData(null);
+  const handleSaveName = async () => {
+    const nextName = nameInput.trim();
+    if (!nextName) {
+      setError("Enter a player name.");
       return;
     }
-    const fetchPlayerData = async () => {
-      setError(null);
-      const { data, error } = await supabase
-        .from("room_players")
-        .select(`*, players ( name )`)
-        .eq("room_id", roomId)
-        .eq("player_id", selectedPlayer)
-        .single();
-      if (error) {
-        console.error("Error fetching selected player data:", error);
-        setError("Error fetching selected player data: " + error.message);
-      } else {
-        setSelectedPlayerData(data);
-      }
-    };
-    fetchPlayerData();
-  }, [selectedPlayer, roomId]);
 
-  // Handle leaving the room
-  const handleLeaveRoom = async () => {
-    if (!roomId || !playerId) return;
     setError(null);
+    localStorage.setItem(PLAYER_NAME_KEY, nextName);
+    setPlayerName(nextName);
+
+    if (!hasJoinedRoom) return;
+
     try {
-      const { error } = await supabase
-        .from("room_players")
-        .delete()
-        .match({ room_id: roomId, player_id: playerId });
-      if (error) throw error;
-      await supabase.removeAllChannels();
-      setRoomId("");
-      setRoomPlayers([]);
-      setTransactions([]);
-      setSelectedPlayer(null);
-      setSelectedPlayerData(null);
-      setTransferAmount(null);
-      setHasJoinedRoom(false);
-      localStorage.removeItem("roomId");
-      window.location.reload();
-    } catch (err: any) {
-      console.error("Error leaving room:", err);
-      setError("Error leaving room: " + (err.message || err));
+      await renamePlayer(playerId, nextName);
+      setSuccessMessage("Name updated.");
+      window.setTimeout(() => setSuccessMessage(null), 2500);
+    } catch (renameError) {
+      setError(`Error renaming player: ${getFriendlyErrorMessage(renameError)}`);
     }
   };
 
-  // Handle joining a room
   const handleJoinRoom = async () => {
-    if (!roomId || !playerName) return;
+    const nextName = nameInput.trim();
+    const nextRoomId = roomInput.trim().toLowerCase();
+
+    if (!nextName || !nextRoomId) {
+      setError("Enter a player name and room code.");
+      return;
+    }
+
+    setIsBusy(true);
     setError(null);
     try {
-      // Check if the room exists
-      const { data: roomData, error: roomError } = await supabase
-        .from("rooms")
-        .select("*")
-        .eq("id", roomId)
-        .single();
-      if (roomError || !roomData) {
-        setError("Room not found. Please check the room code or create a new room.");
+      const room = await getRoom(nextRoomId);
+      if (!room) {
+        setError("Room not found. Check the room code or create a new room.");
         return;
       }
 
-      // Upsert player record
-      const { error: playerError } = await supabase.from("players").upsert({
-        id: playerId,
-        name: playerName,
-      });
-      if (playerError) throw playerError;
-
-      // Upsert room_player record with default chips
-      const { error: roomPlayerError } = await supabase.from("room_players").upsert({
-        player_id: playerId,
-        room_id: roomId,
-        chips: 1000,
-      });
-      if (roomPlayerError) throw roomPlayerError;
-
-      localStorage.setItem("roomId", roomId);
-      setHasJoinedRoom(true);
-      fetchRoomPlayers();
-    } catch (err: any) {
-      console.error("Error joining room:", err);
-      setError("Error joining room: " + (err.message || err));
+      await joinRoom(nextRoomId, playerId, nextName);
+      localStorage.setItem(PLAYER_NAME_KEY, nextName);
+      setPlayerName(nextName);
+      persistRoom(nextRoomId);
+      await loadRoomData(nextRoomId);
+    } catch (joinError) {
+      setError(`Error joining room: ${getFriendlyErrorMessage(joinError)}`);
+    } finally {
+      setIsBusy(false);
     }
   };
 
-  // Handle creating a new room
   const handleCreateRoom = async () => {
+    const nextName = nameInput.trim();
+    if (!nextName) {
+      setError("Enter a player name before creating a room.");
+      return;
+    }
+
+    setIsBusy(true);
     setError(null);
     try {
-      setIsCreatingRoom(true);
-      const newRoomId = Math.random().toString(36).substring(2, 8);
-      const { error } = await supabase.from("rooms").insert([{ id: newRoomId }]);
-      if (error) {
-        setIsCreatingRoom(false);
-        throw error;
-      }
-      setRoomId(newRoomId);
-      localStorage.setItem("roomId", newRoomId);
-      setIsCreatingRoom(false);
-    } catch (err: any) {
-      console.error("Error creating room:", err);
-      setError("Error creating room: " + (err.message || err));
-      setIsCreatingRoom(false);
+      const nextRoomId = await createRoomAndJoin(playerId, nextName);
+      localStorage.setItem(PLAYER_NAME_KEY, nextName);
+      setPlayerName(nextName);
+      persistRoom(nextRoomId);
+      await loadRoomData(nextRoomId);
+    } catch (createError) {
+      setError(`Error creating room: ${getFriendlyErrorMessage(createError)}`);
+    } finally {
+      setIsBusy(false);
     }
   };
 
-  // Handle chip transfer: create transaction and update chip counts
+  const handleLeaveRoom = async () => {
+    if (!roomId) return;
+
+    setIsBusy(true);
+    setError(null);
+    try {
+      await leaveRoom(roomId, playerId);
+      await supabase.removeAllChannels();
+      clearRoomState();
+    } catch (leaveError) {
+      setError(`Error leaving room: ${getFriendlyErrorMessage(leaveError)}`);
+    } finally {
+      setIsBusy(false);
+    }
+  };
+
+  const handleCustomAmountChange = (value: string) => {
+    const sanitizedValue = value.replace(/\D/g, "");
+    setCustomTransferAmount(sanitizedValue);
+    setTransferAmount(sanitizedValue ? Number(sanitizedValue) : null);
+  };
+
   const handleChipTransfer = async () => {
-    if (!selectedPlayer || !transferAmount) return;
+    if (!roomId || !selectedPlayer || !transferAmount) return;
+
+    if (!Number.isInteger(transferAmount) || transferAmount <= 0) {
+      setError("Enter a positive whole number of chips.");
+      return;
+    }
+
+    if (!currentPlayer) {
+      setError("Your player record was not found in this room.");
+      return;
+    }
+
+    if (transferAmount > currentPlayer.chips) {
+      setError("You do not have enough chips for this transfer.");
+      return;
+    }
+
+    setIsBusy(true);
     setError(null);
     try {
-      // Insert a transaction record
-      const { error: txnError } = await supabase.from("transactions").insert({
-        room_id: roomId,
-        from_player: playerId,
-        to_player: selectedPlayer,
-        amount: transferAmount,
-      });
-      if (txnError) throw txnError;
-
-      // Update chip counts for sender and receiver
-      const senderRecord = roomPlayers.find((rp) => rp.player_id === playerId);
-      const receiverRecord = roomPlayers.find((rp) => rp.player_id === selectedPlayer);
-      if (!senderRecord || !receiverRecord) {
-        throw new Error("Could not find sender or receiver record.");
-      }
-      const newSenderChips = senderRecord.chips - transferAmount;
-      const newReceiverChips = receiverRecord.chips + transferAmount;
-
-      const { error: updateSenderError } = await supabase
-        .from("room_players")
-        .update({ chips: newSenderChips })
-        .eq("player_id", playerId)
-        .eq("room_id", roomId);
-      if (updateSenderError) throw updateSenderError;
-
-      const { error: updateReceiverError } = await supabase
-        .from("room_players")
-        .update({ chips: newReceiverChips })
-        .eq("player_id", selectedPlayer)
-        .eq("room_id", roomId);
-      if (updateReceiverError) throw updateReceiverError;
-
-      // Refetch updated data
-      await fetchRoomPlayers();
-      await fetchTransactions();
+      await transferChips(roomId, playerId, selectedPlayer, transferAmount);
+      await loadRoomData();
       setTransferAmount(null);
-      setSelectedPlayer(null);
-    } catch (err: any) {
-      console.error("Error transferring chips:", err);
-      setError("Error transferring chips: " + (err.message || err));
+      setCustomTransferAmount("");
+      setSelectedPlayer("");
+    } catch (transferError) {
+      setError(`Error transferring chips: ${getFriendlyErrorMessage(transferError)}`);
+    } finally {
+      setIsBusy(false);
     }
   };
 
-  // --- RENDERING ---
-
-  // If the player hasn't set a name or joined a room, render the join screen
   if (!playerName || !hasJoinedRoom) {
     return (
       <div className="w-full px-4 sm:px-6 md:px-8 mx-auto max-w-xl">
-        <div className="w-full max-w-md backdrop-blur-lg bg-white/95 shadow-2xl">
-          {/* Header */}
+        <div className="w-full max-w-md backdrop-blur-lg bg-white/95 shadow-2xl rounded-lg">
           <div className="bg-blue-600 text-white space-y-2 p-6 rounded-t-lg">
-            <h2 className="text-2xl sm:text-3xl font-bold text-center">Poker Chip Tracker</h2>
+            <h1 className="text-2xl sm:text-3xl font-bold text-center">Poker Chip Tracker</h1>
           </div>
-          {/* Content */}
-          <div className="p-6 space-y-8">
+
+          <div className="p-6 space-y-6">
             {error && (
-              <div className="text-red-500 text-center bg-red-50 p-3 rounded-lg border border-red-200">
+              <div className="text-red-700 text-center bg-red-50 p-3 rounded-lg border border-red-200">
                 {error}
               </div>
             )}
-            {/* Set Player Name */}
-            {!playerName && (
-              <div className="space-y-4">
-                <input
-                  value={tempPlayerName}
-                  onChange={(e) => setTempPlayerName(e.target.value)}
-                  placeholder="Your name"
-                  className="w-full border p-2 rounded-md"
-                />
-                <button
-                  className="w-full bg-blue-600 text-white py-2 rounded-md"
-                  onClick={() => {
-                    setPlayerName(tempPlayerName);
-                    localStorage.setItem("playerName", tempPlayerName);
-                  }}
-                >
-                  Set Name
-                </button>
+
+            {successMessage && (
+              <div className="text-green-700 text-center bg-green-50 p-3 rounded-lg border border-green-200">
+                {successMessage}
               </div>
             )}
-            {/* Rename */}
-            {playerName && (
-              <div className="space-y-4">
-                <input
-                  value={newPlayerName}
-                  onChange={(e) => setNewPlayerName(e.target.value)}
-                  placeholder="New name"
-                  className="w-full border p-2 rounded-md"
-                />
-                <button className="w-full bg-blue-600 text-white py-2 rounded-md" onClick={handleRename}>
-                  Rename
-                </button>
-                {renameSuccess && <p className="text-green-600 text-sm">Name updated successfully!</p>}
-              </div>
-            )}
-            {/* Join/Create Room */}
-            <input
-              value={roomId}
-              onChange={(e) => setRoomId(e.target.value)}
-              placeholder="Room code"
-              className="w-full border p-2 rounded-md"
-            />
-            <button className="w-full bg-green-600 text-white py-2 rounded-md" onClick={handleJoinRoom}>
-              Join Room
-            </button>
-            <button className="w-full bg-green-700 text-white py-2 rounded-md" onClick={handleCreateRoom}>
-              Create New Room
-            </button>
+
+            <div className="space-y-3">
+              <input
+                value={nameInput}
+                onChange={(event) => setNameInput(event.target.value)}
+                placeholder="Your name"
+                className="w-full border border-gray-300 p-3 rounded-md text-gray-900"
+              />
+              <button
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md disabled:opacity-50"
+                onClick={handleSaveName}
+                disabled={isBusy || !nameInput.trim()}
+              >
+                Save Name
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <input
+                value={roomInput}
+                onChange={(event) => setRoomInput(event.target.value)}
+                placeholder="Room code"
+                className="w-full border border-gray-300 p-3 rounded-md text-gray-900"
+              />
+              <button
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-md disabled:opacity-50"
+                onClick={handleJoinRoom}
+                disabled={isBusy || !nameInput.trim() || !roomInput.trim()}
+              >
+                Join Room
+              </button>
+              <button
+                className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-md disabled:opacity-50"
+                onClick={handleCreateRoom}
+                disabled={isBusy || !nameInput.trim()}
+              >
+                Create New Room
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-// Main room interface
-return (
+  return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
-      <div className="w-full max-w-4xl mx-auto shadow-xl">
-        {/* Header */}
-        <div className="bg-gray-800 text-white flex flex-col sm:flex-row justify-between items-center gap-4 p-6 rounded-t-lg">
+      <div className="w-full max-w-4xl mx-auto shadow-xl rounded-lg overflow-hidden bg-white">
+        <div className="bg-gray-800 text-white flex flex-col sm:flex-row justify-between items-center gap-4 p-6">
           <div className="space-y-2 text-center sm:text-left">
-            <h2 className="text-xl sm:text-2xl font-bold">Room: {roomId}</h2>
+            <h1 className="text-xl sm:text-2xl font-bold">Room: {roomId}</h1>
             <p className="text-gray-300 text-sm">Welcome, {playerName}</p>
           </div>
           <button
             type="button"
-            className="bg-red-600 hover:bg-red-700 transition-colors text-white py-2 px-4"
+            className="bg-red-600 hover:bg-red-700 transition-colors text-white py-2 px-4 disabled:opacity-50"
             onClick={handleLeaveRoom}
+            disabled={isBusy}
           >
             Leave Room
           </button>
         </div>
-  
-        {/* Content */}
-        <div className="p-6 space-y-10">
+
+        <div className="p-6 space-y-8">
           {error && (
-            <div className="text-red-500 text-center bg-red-50 p-3 rounded-lg border border-red-200">
+            <div className="text-red-700 text-center bg-red-50 p-3 rounded-lg border border-red-200">
               {error}
             </div>
           )}
-          
+
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            {/* Left Column: Players */}
+            <section className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
+              <h2 className="text-xl font-semibold mb-4 text-gray-800">Players</h2>
+              {roomPlayers.length > 0 ? (
+                <ul className="divide-y divide-gray-200">
+                  {roomPlayers.map((roomPlayer) => (
+                    <li key={roomPlayer.id} className="flex justify-between items-center gap-4 py-3">
+                      <span className="font-medium text-gray-800 min-w-0">
+                        {roomPlayer.players?.name || roomPlayer.player_id}
+                        {roomPlayer.player_id === playerId && (
+                          <span className="ml-2 text-sm text-blue-600">(You)</span>
+                        )}
+                      </span>
+                      <span className="font-bold text-gray-900 whitespace-nowrap">{roomPlayer.chips} chips</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-gray-500 text-center">No players in the room.</p>
+              )}
+            </section>
+
             <div className="space-y-8">
-              {/* Players List */}
-              <section className="bg-white rounded-lg p-6 shadow-md">
-                <h2 className="text-xl font-semibold mb-4 text-gray-800">Players</h2>
-                {roomPlayers.length > 0 ? (
-                  <ul className="divide-y divide-gray-200">
-                    {roomPlayers.map((rp) => (
-                      <li key={rp.id} className="flex justify-between items-center py-3">
-                        <span className="font-medium text-gray-800">
-                          {rp.players?.name || rp.player_id}
-                          {rp.player_id === playerId && (
-                            <span className="ml-2 text-sm text-blue-600">(You)</span>
-                          )}
-                        </span>
-                        <span className="font-bold text-gray-900">{rp.chips} chips</span>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p className="text-gray-500 text-center">No players in the room.</p>
-                )}
-              </section>
-            </div>
-  
-            {/* Right Column: Transfer Chips & Transactions */}
-            <div className="space-y-8">
-              {/* Transfer Chips */}
-              <section className="bg-white rounded-lg p-6 shadow-md">
+              <section className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
                 <h2 className="text-xl font-semibold mb-6 text-gray-800">Transfer Chips</h2>
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Select Player
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Player</label>
                     <select
-                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      onChange={(e) => setSelectedPlayer(e.target.value)}
-                      value={selectedPlayer || ""}
+                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      onChange={(event) => setSelectedPlayer(event.target.value)}
+                      value={selectedPlayer}
+                      disabled={isBusy}
                     >
                       <option value="">Choose a player</option>
                       {roomPlayers
-                        .filter((rp) => rp.player_id !== playerId)
-                        .map((rp) => (
-                          <option key={rp.id} value={rp.player_id}>
-                            {rp.players?.name || rp.player_id}
+                        .filter((roomPlayer) => roomPlayer.player_id !== playerId)
+                        .map((roomPlayer) => (
+                          <option key={roomPlayer.id} value={roomPlayer.player_id}>
+                            {roomPlayer.players?.name || roomPlayer.player_id}
                           </option>
                         ))}
                     </select>
                   </div>
-  
+
                   {selectedPlayerData && (
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <h3 className="font-semibold text-blue-800">
@@ -480,18 +466,20 @@ return (
                       </p>
                     </div>
                   )}
-  
+
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Amount
-                    </label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                      {[10, 20, 50, 100].map((amount) => (
+                      {TRANSFER_AMOUNTS.map((amount) => (
                         <button
                           key={amount}
                           type="button"
-                          onClick={() => setTransferAmount(amount)}
-                          className={`py-2 px-4 transition-colors ${
+                          onClick={() => {
+                            setTransferAmount(amount);
+                            setCustomTransferAmount(String(amount));
+                          }}
+                          disabled={isBusy || (currentPlayer ? amount > currentPlayer.chips : true)}
+                          className={`py-2 px-4 transition-colors disabled:opacity-50 ${
                             transferAmount === amount
                               ? "bg-blue-700 ring-2 ring-blue-300"
                               : "bg-blue-500 hover:bg-blue-600"
@@ -501,42 +489,50 @@ return (
                         </button>
                       ))}
                     </div>
+                    <input
+                      value={customTransferAmount}
+                      onChange={(event) => handleCustomAmountChange(event.target.value)}
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      placeholder="Custom amount"
+                      className="mt-3 w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      disabled={isBusy}
+                    />
                   </div>
-  
+
                   <button
                     type="button"
                     className="w-full bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 text-white py-2"
                     onClick={handleChipTransfer}
-                    disabled={!selectedPlayer || !transferAmount}
+                    disabled={isBusy || !selectedPlayer || isTransferAmountInvalid}
                   >
-                    Transfer {transferAmount} Chips
+                    Transfer {transferAmount ?? 0} Chips
                   </button>
                 </div>
               </section>
-  
-              {/* Recent Transactions - Moved Below Transfer Chips */}
-              <section className="bg-white rounded-lg p-6 shadow-md">
+
+              <section className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
                 <h2 className="text-xl font-semibold mb-4 text-gray-800">Recent Transactions</h2>
                 {transactions.length > 0 ? (
                   <ul className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-                    {transactions.map((txn) => {
-                      const fromName =
-                        roomPlayers.find((rp) => rp.player_id === txn.from_player)?.players?.name ||
-                        txn.from_player;
-                      const toName =
-                        roomPlayers.find((rp) => rp.player_id === txn.to_player)?.players?.name ||
-                        txn.to_player;
-                      return (
-                        <li key={txn.id} className="py-3 flex justify-between items-center">
-                          <span className="text-gray-800">
-                            <span className="font-medium">{fromName}</span>
-                            <span className="mx-2">→</span>
-                            <span className="font-medium">{toName}</span>
+                    {transactions.map((transaction) => (
+                      <li key={transaction.id} className="py-3 flex justify-between items-center gap-4">
+                        <span className="text-gray-800 min-w-0">
+                          <span className="font-medium">
+                            {transaction.from_player_name ??
+                              playerNamesById.get(transaction.from_player) ??
+                              transaction.from_player}
                           </span>
-                          <span className="font-bold text-gray-900">{txn.amount} chips</span>
-                        </li>
-                      );
-                    })}
+                          <span className="mx-2">-&gt;</span>
+                          <span className="font-medium">
+                            {transaction.to_player_name ??
+                              playerNamesById.get(transaction.to_player) ??
+                              transaction.to_player}
+                          </span>
+                        </span>
+                        <span className="font-bold text-gray-900 whitespace-nowrap">{transaction.amount} chips</span>
+                      </li>
+                    ))}
                   </ul>
                 ) : (
                   <p className="text-gray-500 text-center">No transactions yet.</p>

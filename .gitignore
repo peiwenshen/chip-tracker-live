@@ -11,6 +11,8 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+*.tsbuildinfo
+package-lock\ *.json
 
 # Environment Variables
 .env.local
