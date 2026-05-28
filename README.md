@@ -45,12 +45,14 @@ The GitHub Actions workflow in `.github/workflows/deploy.yml` applies the Supaba
 Add these repository secrets in GitHub:
 
 ```sh
-SUPABASE_DB_URL=postgresql://...
+SUPABASE_DB_URL=postgresql://postgres.your-project-ref:your-password@aws-0-your-region.pooler.supabase.com:6543/postgres?sslmode=require
 VITE_SUPABASE_URL=https://your-project-ref.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-publishable-key
 ```
 
-Use the Supabase database connection string for `SUPABASE_DB_URL`. Do not use the secret API key in the frontend env vars.
+Use the Supavisor pooler connection string for `SUPABASE_DB_URL`, not the direct `db.<project-ref>.supabase.co` connection string. GitHub Actions does not support IPv6-only direct database connections. In Supabase, open the project, click **Connect**, choose the pooler connection string, and use transaction mode on port `6543`.
+
+Do not use the secret API key in the frontend env vars.
 
 ## Checks
 

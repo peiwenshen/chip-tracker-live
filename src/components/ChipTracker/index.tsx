@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { CircleDollarSign, DoorOpen, LogOut, Plus, Send, Users } from "lucide-react";
 import { v4 as uuidv4 } from "uuid";
 import supabase from "@/lib/supabaseClient";
 import {
@@ -100,6 +101,14 @@ const ChipTracker = () => {
   const playerNamesById = useMemo(() => {
     return new Map(roomPlayers.map((roomPlayer) => [roomPlayer.player_id, roomPlayer.players?.name ?? roomPlayer.player_id]));
   }, [roomPlayers]);
+
+  const totalChips = useMemo(() => {
+    return roomPlayers.reduce((total, roomPlayer) => total + roomPlayer.chips, 0);
+  }, [roomPlayers]);
+
+  const otherPlayers = useMemo(() => {
+    return roomPlayers.filter((roomPlayer) => roomPlayer.player_id !== playerId);
+  }, [playerId, roomPlayers]);
 
   const isTransferAmountInvalid =
     transferAmount === null ||
@@ -323,153 +332,238 @@ const ChipTracker = () => {
 
   if (!playerName || !hasJoinedRoom) {
     return (
-      <div className="w-full px-4 sm:px-6 md:px-8 mx-auto max-w-xl">
-        <div className="w-full max-w-md backdrop-blur-lg bg-white/95 shadow-2xl rounded-lg">
-          <div className="bg-blue-600 text-white space-y-2 p-6 rounded-t-lg">
-            <h1 className="text-2xl sm:text-3xl font-bold text-center">Poker Chip Tracker</h1>
-          </div>
-
-          <div className="p-6 space-y-6">
-            {error && (
-              <div className="text-red-700 text-center bg-red-50 p-3 rounded-lg border border-red-200">
-                {error}
+      <main className="min-h-screen bg-[#f2eee6] px-3 py-3 text-[#1b1916] sm:px-6 sm:py-6 lg:px-8">
+        <div className="mx-auto flex min-h-[calc(100vh-1.5rem)] w-full max-w-6xl items-center sm:min-h-[calc(100vh-3rem)]">
+          <div className="grid w-full overflow-hidden rounded-lg border border-[#ded3bf] bg-[#fffaf0] shadow-2xl shadow-[#3b2d1a]/15 lg:grid-cols-[1.05fr_0.95fr]">
+            <section className="flex flex-col justify-between bg-[#0f3128] p-5 text-white sm:p-8 lg:p-10">
+              <div>
+                <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-xs text-[#eee6d6] sm:mb-10 sm:text-sm">
+                  <CircleDollarSign className="h-4 w-4 text-[#d8b45f]" />
+                  Live table balance
+                </div>
+                <h1 className="max-w-xl text-3xl font-semibold leading-tight sm:text-5xl">
+                  Poker Chip Tracker
+                </h1>
+                <p className="mt-3 max-w-md text-sm text-[#d8d0c2] sm:mt-5 sm:text-base">
+                  Create a room, invite players, and keep chip transfers synced during the game.
+                </p>
               </div>
-            )}
 
-            {successMessage && (
-              <div className="text-green-700 text-center bg-green-50 p-3 rounded-lg border border-green-200">
-                {successMessage}
+              <div className="mt-6 grid grid-cols-3 gap-2 text-xs text-[#d8d0c2] sm:mt-12 sm:gap-3 sm:text-sm">
+                <div className="rounded-md border border-white/10 bg-white/10 p-3 sm:p-4">
+                  <p className="text-lg font-semibold text-white sm:text-2xl">1,000</p>
+                  <p>Starting chips</p>
+                </div>
+                <div className="rounded-md border border-white/10 bg-white/10 p-3 sm:p-4">
+                  <p className="text-lg font-semibold text-white sm:text-2xl">Live</p>
+                  <p>Room updates</p>
+                </div>
+                <div className="rounded-md border border-white/10 bg-white/10 p-3 sm:p-4">
+                  <p className="text-lg font-semibold text-white sm:text-2xl">RPC</p>
+                  <p>Safe transfers</p>
+                </div>
               </div>
-            )}
+            </section>
 
-            <div className="space-y-3">
-              <input
-                value={nameInput}
-                onChange={(event) => setNameInput(event.target.value)}
-                placeholder="Your name"
-                className="w-full border border-gray-300 p-3 rounded-md text-gray-900"
-              />
-              <button
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-md disabled:opacity-50"
-                onClick={handleSaveName}
-                disabled={isBusy || !nameInput.trim()}
-              >
-                Save Name
-              </button>
-            </div>
+            <section className="p-5 sm:p-8 lg:p-10">
+              <div className="mb-5 sm:mb-8">
+                <h2 className="text-xl font-semibold text-[#1b1916] sm:text-2xl">Join a table</h2>
+                <p className="mt-2 text-sm text-[#766d5f]">Use a player name and room code, or create a new room.</p>
+              </div>
 
-            <div className="space-y-3">
-              <input
-                value={roomInput}
-                onChange={(event) => setRoomInput(event.target.value)}
-                placeholder="Room code"
-                className="w-full border border-gray-300 p-3 rounded-md text-gray-900"
-              />
-              <button
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-md disabled:opacity-50"
-                onClick={handleJoinRoom}
-                disabled={isBusy || !nameInput.trim() || !roomInput.trim()}
-              >
-                Join Room
-              </button>
-              <button
-                className="w-full bg-green-700 hover:bg-green-800 text-white py-2 rounded-md disabled:opacity-50"
-                onClick={handleCreateRoom}
-                disabled={isBusy || !nameInput.trim()}
-              >
-                Create New Room
-              </button>
-            </div>
+              {error && (
+                <div className="mb-5 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {error}
+                </div>
+              )}
+
+              {successMessage && (
+                <div className="mb-5 rounded-md border border-[#bfd9c7] bg-[#edf7ef] p-3 text-sm text-[#1f6b4f]">
+                  {successMessage}
+                </div>
+              )}
+
+              <div className="space-y-5">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#4b4438]">Player name</label>
+                  <input
+                    value={nameInput}
+                    onChange={(event) => setNameInput(event.target.value)}
+                    placeholder="e.g. Alex"
+                    className="min-h-11 w-full rounded-md border border-[#cfc2aa] bg-white px-3 py-2.5 text-base text-[#1b1916] outline-none transition focus:border-[#0f3128] focus:ring-4 focus:ring-[#d8c7a3]"
+                  />
+                </div>
+
+                <button
+                  className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-[#0f3128] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174338] disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={handleSaveName}
+                  disabled={isBusy || !nameInput.trim()}
+                >
+                  <Users className="h-4 w-4" />
+                  Save Name
+                </button>
+
+                <div className="pt-3">
+                  <label className="mb-2 block text-sm font-medium text-[#4b4438]">Room code</label>
+                  <input
+                    value={roomInput}
+                    onChange={(event) => setRoomInput(event.target.value)}
+                    placeholder="Enter room code"
+                    className="min-h-11 w-full rounded-md border border-[#cfc2aa] bg-white px-3 py-2.5 text-base text-[#1b1916] outline-none transition focus:border-[#0f3128] focus:ring-4 focus:ring-[#d8c7a3]"
+                  />
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#1f6b4f] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#18543f] disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={handleJoinRoom}
+                    disabled={isBusy || !nameInput.trim() || !roomInput.trim()}
+                  >
+                    <DoorOpen className="h-4 w-4" />
+                    Join Room
+                  </button>
+                  <button
+                    className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-[#cfc2aa] bg-[#fffaf0] px-4 py-2.5 text-sm font-semibold text-[#1b1916] transition hover:bg-[#f7edd9] disabled:cursor-not-allowed disabled:opacity-50"
+                    onClick={handleCreateRoom}
+                    disabled={isBusy || !nameInput.trim()}
+                  >
+                    <Plus className="h-4 w-4" />
+                    Create Room
+                  </button>
+                </div>
+              </div>
+            </section>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:p-6">
-      <div className="w-full max-w-4xl mx-auto shadow-xl rounded-lg overflow-hidden bg-white">
-        <div className="bg-gray-800 text-white flex flex-col sm:flex-row justify-between items-center gap-4 p-6">
-          <div className="space-y-2 text-center sm:text-left">
-            <h1 className="text-xl sm:text-2xl font-bold">Room: {roomId}</h1>
-            <p className="text-gray-300 text-sm">Welcome, {playerName}</p>
-          </div>
-          <button
-            type="button"
-            className="bg-red-600 hover:bg-red-700 transition-colors text-white py-2 px-4 disabled:opacity-50"
-            onClick={handleLeaveRoom}
-            disabled={isBusy}
-          >
-            Leave Room
-          </button>
-        </div>
+    <main className="min-h-screen bg-[#f2eee6] px-3 py-3 text-[#1b1916] sm:px-6 sm:py-5 lg:px-8">
+      <div className="mx-auto w-full max-w-7xl">
+        <header className="mb-3 overflow-hidden rounded-lg border border-[#123a30] bg-[#0f3128] text-white shadow-xl shadow-[#3b2d1a]/15 sm:mb-5">
+          <div className="flex flex-col gap-4 p-4 sm:gap-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-[#d8b45f] sm:text-sm">Active room</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2 sm:gap-3">
+                <h1 className="text-2xl font-semibold sm:text-4xl">{roomId}</h1>
+                <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1 text-sm text-[#eee6d6]">
+                  {playerName}
+                </span>
+              </div>
+            </div>
 
-        <div className="p-6 space-y-8">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:min-w-[420px]">
+              <div className="rounded-md border border-white/10 bg-white/10 p-3">
+                <p className="text-xs uppercase tracking-wide text-[#d8d0c2]">Players</p>
+                <p className="mt-1 text-xl font-semibold sm:text-2xl">{roomPlayers.length}</p>
+              </div>
+              <div className="rounded-md border border-white/10 bg-white/10 p-3">
+                <p className="text-xs uppercase tracking-wide text-[#d8d0c2]">Chips</p>
+                <p className="mt-1 text-xl font-semibold sm:text-2xl">{totalChips}</p>
+              </div>
+              <button
+                type="button"
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md bg-[#b94a3a] px-3 py-2.5 text-sm font-semibold text-white transition hover:bg-[#973d31] disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={handleLeaveRoom}
+                disabled={isBusy}
+              >
+                <LogOut className="h-4 w-4" />
+                Leave
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <div className="space-y-3 sm:space-y-5">
           {error && (
-            <div className="text-red-700 text-center bg-red-50 p-3 rounded-lg border border-red-200">
+            <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {error}
             </div>
           )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <section className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
-              <h2 className="text-xl font-semibold mb-4 text-gray-800">Players</h2>
+          <div className="grid grid-cols-1 gap-3 sm:gap-5 lg:grid-cols-[1fr_420px]">
+            <section className="rounded-lg border border-[#ded3bf] bg-[#fffaf0] shadow-sm shadow-[#4a3820]/10">
+              <div className="flex items-center justify-between border-b border-[#ded3bf] px-4 py-3 sm:px-5 sm:py-4">
+                <div>
+                  <h2 className="text-lg font-semibold text-[#1b1916]">Players</h2>
+                  <p className="text-sm text-[#766d5f]">Live balances.</p>
+                </div>
+                <Users className="h-5 w-5 text-[#9b917f]" />
+              </div>
               {roomPlayers.length > 0 ? (
-                <ul className="divide-y divide-gray-200">
+                <ul className="divide-y divide-[#eee5d5]">
                   {roomPlayers.map((roomPlayer) => (
-                    <li key={roomPlayer.id} className="flex justify-between items-center gap-4 py-3">
-                      <span className="font-medium text-gray-800 min-w-0">
-                        {roomPlayer.players?.name || roomPlayer.player_id}
-                        {roomPlayer.player_id === playerId && (
-                          <span className="ml-2 text-sm text-blue-600">(You)</span>
-                        )}
-                      </span>
-                      <span className="font-bold text-gray-900 whitespace-nowrap">{roomPlayer.chips} chips</span>
+                    <li key={roomPlayer.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#f1eadc] text-sm font-semibold text-[#4b4438] sm:h-10 sm:w-10">
+                          {(roomPlayer.players?.name || roomPlayer.player_id).slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-[#1b1916]">
+                            {roomPlayer.players?.name || roomPlayer.player_id}
+                          </p>
+                          {roomPlayer.player_id === playerId && (
+                            <p className="text-sm text-[#1f6b4f]">You</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="shrink-0 rounded-md bg-[#fff5d8] px-3 py-2 text-right">
+                        <p className="text-base font-semibold leading-none text-[#1b1916] sm:text-lg">{roomPlayer.chips}</p>
+                        <p className="text-xs text-[#9a6919]">chips</p>
+                      </div>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="text-gray-500 text-center">No players in the room.</p>
+                <p className="p-5 text-center text-[#766d5f]">No players in the room.</p>
               )}
             </section>
 
-            <div className="space-y-8">
-              <section className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
-                <h2 className="text-xl font-semibold mb-6 text-gray-800">Transfer Chips</h2>
-                <div className="space-y-6">
+            <div className="space-y-3 sm:space-y-5">
+              <section className="rounded-lg border border-[#ded3bf] bg-[#fffaf0] p-4 shadow-sm shadow-[#4a3820]/10 sm:p-5">
+                <div className="mb-4 flex items-center justify-between sm:mb-5">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Select Player</label>
+                    <h2 className="text-lg font-semibold text-[#1b1916]">Transfer chips</h2>
+                    <p className="text-sm text-[#766d5f]">
+                      Balance available: {currentPlayer?.chips ?? 0}
+                    </p>
+                  </div>
+                  <Send className="h-5 w-5 text-[#9b917f]" />
+                </div>
+                <div className="space-y-5">
+                  <div>
+                    <label className="mb-2 block text-sm font-medium text-[#4b4438]">Send to</label>
                     <select
-                      className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      className="min-h-11 w-full rounded-md border border-[#cfc2aa] bg-white px-3 py-2.5 text-base text-[#1b1916] outline-none transition focus:border-[#0f3128] focus:ring-4 focus:ring-[#d8c7a3]"
                       onChange={(event) => setSelectedPlayer(event.target.value)}
                       value={selectedPlayer}
                       disabled={isBusy}
                     >
                       <option value="">Choose a player</option>
-                      {roomPlayers
-                        .filter((roomPlayer) => roomPlayer.player_id !== playerId)
-                        .map((roomPlayer) => (
-                          <option key={roomPlayer.id} value={roomPlayer.player_id}>
-                            {roomPlayer.players?.name || roomPlayer.player_id}
-                          </option>
-                        ))}
+                      {otherPlayers.map((roomPlayer) => (
+                        <option key={roomPlayer.id} value={roomPlayer.player_id}>
+                          {roomPlayer.players?.name || roomPlayer.player_id}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
                   {selectedPlayerData && (
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h3 className="font-semibold text-blue-800">
+                    <div className="rounded-md border border-[#bfd9c7] bg-[#edf7ef] p-3 sm:p-4">
+                      <h3 className="font-semibold text-[#164633]">
                         {selectedPlayerData.players?.name || selectedPlayerData.player_id}
                       </h3>
-                      <p className="text-sm text-blue-600">
+                      <p className="text-sm text-[#1f6b4f]">
                         Current Balance: {selectedPlayerData.chips} chips
                       </p>
                     </div>
                   )}
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Amount</label>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <label className="mb-2 block text-sm font-medium text-[#4b4438]">Amount</label>
+                    <div className="grid grid-cols-4 gap-2">
                       {TRANSFER_AMOUNTS.map((amount) => (
                         <button
                           key={amount}
@@ -479,11 +573,11 @@ const ChipTracker = () => {
                             setCustomTransferAmount(String(amount));
                           }}
                           disabled={isBusy || (currentPlayer ? amount > currentPlayer.chips : true)}
-                          className={`py-2 px-4 transition-colors disabled:opacity-50 ${
+                          className={`min-h-11 rounded-md px-3 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
                             transferAmount === amount
-                              ? "bg-blue-700 ring-2 ring-blue-300"
-                              : "bg-blue-500 hover:bg-blue-600"
-                          } text-white`}
+                              ? "bg-[#0f3128] text-white ring-4 ring-[#d8c7a3]"
+                              : "border border-[#cfc2aa] bg-white text-[#2d2923] hover:bg-[#f7edd9]"
+                          }`}
                         >
                           {amount}
                         </button>
@@ -495,29 +589,32 @@ const ChipTracker = () => {
                       inputMode="numeric"
                       pattern="[0-9]*"
                       placeholder="Custom amount"
-                      className="mt-3 w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900"
+                      className="mt-3 min-h-11 w-full rounded-md border border-[#cfc2aa] bg-white px-3 py-2.5 text-base text-[#1b1916] outline-none transition focus:border-[#0f3128] focus:ring-4 focus:ring-[#d8c7a3]"
                       disabled={isBusy}
                     />
                   </div>
 
                   <button
                     type="button"
-                    className="w-full bg-blue-600 hover:bg-blue-700 transition-colors disabled:opacity-50 text-white py-2"
+                    className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-[#0f3128] px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-[#174338] disabled:cursor-not-allowed disabled:opacity-50"
                     onClick={handleChipTransfer}
                     disabled={isBusy || !selectedPlayer || isTransferAmountInvalid}
                   >
+                    <Send className="h-4 w-4" />
                     Transfer {transferAmount ?? 0} Chips
                   </button>
                 </div>
               </section>
 
-              <section className="bg-white rounded-lg p-6 shadow-md border border-gray-100">
-                <h2 className="text-xl font-semibold mb-4 text-gray-800">Recent Transactions</h2>
+              <section className="rounded-lg border border-[#ded3bf] bg-[#fffaf0] shadow-sm shadow-[#4a3820]/10">
+                <div className="border-b border-[#ded3bf] px-4 py-3 sm:px-5 sm:py-4">
+                  <h2 className="text-lg font-semibold text-[#1b1916]">Recent transactions</h2>
+                </div>
                 {transactions.length > 0 ? (
-                  <ul className="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+                  <ul className="max-h-96 divide-y divide-[#eee5d5] overflow-y-auto">
                     {transactions.map((transaction) => (
-                      <li key={transaction.id} className="py-3 flex justify-between items-center gap-4">
-                        <span className="text-gray-800 min-w-0">
+                      <li key={transaction.id} className="flex items-center justify-between gap-3 px-4 py-3 sm:px-5">
+                        <span className="min-w-0 truncate text-sm text-[#4b4438]">
                           <span className="font-medium">
                             {transaction.from_player_name ??
                               playerNamesById.get(transaction.from_player) ??
@@ -530,19 +627,21 @@ const ChipTracker = () => {
                               transaction.to_player}
                           </span>
                         </span>
-                        <span className="font-bold text-gray-900 whitespace-nowrap">{transaction.amount} chips</span>
+                        <span className="whitespace-nowrap rounded-md bg-[#f1eadc] px-2 py-1 text-sm font-semibold text-[#1b1916]">
+                          {transaction.amount}
+                        </span>
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="text-gray-500 text-center">No transactions yet.</p>
+                  <p className="p-5 text-center text-[#766d5f]">No transactions yet.</p>
                 )}
               </section>
             </div>
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 };
 
