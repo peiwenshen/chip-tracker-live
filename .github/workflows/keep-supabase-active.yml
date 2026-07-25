@@ -3,20 +3,106 @@ name: Keep Supabase Active
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 9 */3 * *"
+    - cron: "0 9 * * *"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  ROOM_ID: keepalive
+  PLAYER_A: 00000000-0000-4000-8000-00000000a11e
+  PLAYER_B: 00000000-0000-4000-8000-00000000b0b0
+
+permissions:
+  issues: write
 
 jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase REST API
+      # A read-only ping did not stop the project being paused in June 2026,
+      # so this performs a real write through transfer_chips. That also makes
+      # the job a smoke test of the one RPC the whole app depends on.
+      - name: Transfer chips in the keep-alive room
         run: |
-          curl -fsS "$VITE_SUPABASE_URL/rest/v1/rooms?select=id&limit=1" \
-            -H "apikey: $VITE_SUPABASE_ANON_KEY" \
-            -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY"
+          set -euo pipefail
+
+          api() { # api <method> <path> [extra curl args...]
+            local method=$1 path=$2; shift 2
+            curl -fsS -X "$method" "$VITE_SUPABASE_URL/rest/v1/$path" \
+              -H "apikey: $VITE_SUPABASE_ANON_KEY" \
+              -H "Authorization: Bearer $VITE_SUPABASE_ANON_KEY" \
+              -H "Content-Type: application/json" "$@"
+          }
+
+          # Recreate the fixture if it is missing, so a wiped or restored
+          # database heals itself instead of failing here every day.
+          echo "ensuring keep-alive room exists"
+          ignore=(-H "Prefer: resolution=ignore-duplicates")
+          api POST "rooms?on_conflict=id" "${ignore[@]}" \
+            -d "{\"id\":\"$ROOM_ID\"}"
+          api POST "players?on_conflict=id" "${ignore[@]}" \
+            -d "[{\"id\":\"$PLAYER_A\",\"name\":\"keepalive-a\"},
+                 {\"id\":\"$PLAYER_B\",\"name\":\"keepalive-b\"}]"
+          api POST "room_players?on_conflict=room_id,player_id" "${ignore[@]}" \
+            -d "[{\"room_id\":\"$ROOM_ID\",\"player_id\":\"$PLAYER_A\",\"chips\":1000},
+                 {\"room_id\":\"$ROOM_ID\",\"player_id\":\"$PLAYER_B\",\"chips\":1000}]"
+
+          transfer() {
+            api POST "rpc/transfer_chips" -d \
+              "{\"p_room_id\":\"$ROOM_ID\",\"p_from_player\":\"$1\",
+                \"p_to_player\":\"$2\",\"p_amount\":1}"
+          }
+
+          # Send one chip and send it straight back. The round trip nets to
+          # zero, so balances stay at 1000/1000 no matter how many times this
+          # runs or how many runs get skipped.
+          echo "transferring 1 chip A -> B"
+          transfer "$PLAYER_A" "$PLAYER_B"
+          echo "transferring 1 chip B -> A"
+          transfer "$PLAYER_B" "$PLAYER_A"
+
+          chips=$(api GET "room_players?room_id=eq.$ROOM_ID&select=chips&order=player_id")
+          echo "balances after round trip: $chips"
+
+          # If this ever drifts, a later run could hit the chips >= 0 check and
+          # start failing for a reason that has nothing to do with uptime.
+          if [ "$chips" != '[{"chips":1000},{"chips":1000}]' ]; then
+            echo "::error::balances drifted from 1000/1000 - $chips"
+            exit 1
+          fi
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Open an issue if the ping failed
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: existing } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'keep-alive',
+            })
+
+            const body = `The scheduled Supabase keep-alive failed.\n\n` +
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}\n\n` +
+              `If the host does not resolve, the project is paused - restore it ` +
+              `in the Supabase dashboard. Otherwise transfer_chips itself may be broken.`
+
+            if (existing.length > 0) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing[0].number,
+                body,
+              })
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: 'Supabase keep-alive is failing',
+                labels: ['keep-alive'],
+                body,
+              })
+            }
