@@ -60,7 +60,10 @@ jobs:
           echo "transferring 1 chip B -> A"
           transfer "$PLAYER_B" "$PLAYER_A"
 
-          chips=$(api GET "room_players?room_id=eq.$ROOM_ID&select=chips&order=player_id")
+          # PostgREST pretty-prints the array across lines, so strip whitespace
+          # before comparing or the check fails on formatting alone.
+          chips=$(api GET "room_players?room_id=eq.$ROOM_ID&select=chips&order=player_id" \
+            | tr -d '[:space:]')
           echo "balances after round trip: $chips"
 
           # If this ever drifts, a later run could hit the chips >= 0 check and
